@@ -1,6 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { riyadhNow, state, json } from "../lib/shared.mts";
+import { riyadhNow, state, json, STORE, OPEN_MIN, CLOSE_MIN } from "../lib/shared.mts";
 
 export default async (req: Request) => {
   if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -11,7 +11,7 @@ export default async (req: Request) => {
   const name = String(body.name || "").replace(/\s+/g, " ").trim();
   if (name.length < 3 || name.length > 60) return json({ error: "name" }, 400);
   const norm = name.replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").toLowerCase();
-  const store = getStore({ name: "attendance", consistency: "strong" });
+  const store = getStore({ name: STORE(), consistency: "strong" });
   const key = `${now.date}/${encodeURIComponent(norm)}`;
   const { modified } = await store.setJSON(key, { name, time: now.time, at: Date.now() }, { onlyIfNew: true });
   if (!modified) return json({ error: "duplicate" }, 409);

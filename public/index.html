@@ -63,6 +63,7 @@ td.tm{font-variant-numeric:tabular-nums;white-space:nowrap;direction:ltr;text-al
   </header>
   <div class="clock" id="clock">--:--:--</div>
   <div class="date" id="todayLabel"></div>
+  <div class="date hidden" id="testBadge" style="color:var(--warn);font-weight:700">وضع تجربة — البيانات لن تُحفظ في السجل الحقيقي</div>
 
   <div class="card noprint" id="statusCard">
     <div class="status" id="status"><span class="dot"></span><span id="statusText">جارٍ التحميل…</span></div>
@@ -105,7 +106,7 @@ td.tm{font-variant-numeric:tabular-nums;white-space:nowrap;direction:ltr;text-al
 </div>
 
 <script>
-const OPEN = 7*60, CLOSE = 7*60+15;
+let OPEN = 7*60, CLOSE = 7*60+15;
 let offset = 0;            // server(Riyadh) - client, in ms
 let lastData = null;
 const $ = id => document.getElementById(id);
@@ -114,6 +115,7 @@ const pad = n => String(n).padStart(2,'0');
 function riyadh(){ const d = new Date(Date.now()+offset+3*3600e3); return {d, date:d.toISOString().slice(0,10), sec:d.getUTCHours()*3600+d.getUTCMinutes()*60+d.getUTCSeconds()}; }
 function fmt12(t){ const [h,m,s]=t.split(':').map(Number); const ap=h<12?'ص':'م'; const hh=h%12||12; return `${hh}:${pad(m)}:${pad(s)} ${ap}`; }
 function arDate(iso){ try{ return new Date(iso+'T12:00:00Z').toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric',timeZone:'UTC'}); }catch{ return iso; } }
+function hm(min){ const h=Math.floor(min/60), m=min%60; return `${h%12||12}:${pad(m)} ${h<12?'ص':'م'}`; }
 function dur(s){ s=Math.max(0,Math.ceil(s)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return h? `${h} س ${pad(m)} د` : `${pad(m)}:${pad(x)}`; }
 
 function myRecord(date){ try{ return JSON.parse(localStorage.getItem('att_'+date)||'null'); }catch{ return null; } }
@@ -129,16 +131,16 @@ function tick(){
   const mine = myRecord(date);
   if (st==='before'){
     $('statusText').textContent = 'التحضير لم يبدأ بعد';
-    $('statusSub').textContent = `يفتح الساعة 7:00 صباحًا — باقي ${dur(OPEN*60-sec)}`;
+    $('statusSub').textContent = `يفتح الساعة ${hm(OPEN)} — باقي ${dur(OPEN*60-sec)}`;
     $('bar').classList.add('hidden');
   } else if (st==='open'){
     $('statusText').textContent = 'التحضير مفتوح الآن';
-    $('statusSub').textContent = `يُغلق الساعة 7:15 — باقي ${dur(CLOSE*60-sec)}`;
+    $('statusSub').textContent = `يُغلق الساعة ${hm(CLOSE)} — باقي ${dur(CLOSE*60-sec)}`;
     $('bar').classList.remove('hidden');
-    $('barFill').style.width = ((sec-OPEN*60)/(15*60)*100)+'%';
+    $('barFill').style.width = ((sec-OPEN*60)/((CLOSE-OPEN)*60)*100)+'%';
   } else {
     $('statusText').textContent = 'انتهى وقت التحضير';
-    $('statusSub').textContent = 'التسجيل متاح يوميًا من 7:00 إلى 7:15 صباحًا';
+    $('statusSub').textContent = `التسجيل متاح يوميًا من ${hm(OPEN)} إلى ${hm(CLOSE)}`;
     $('bar').classList.add('hidden');
   }
   $('formCard').classList.toggle('hidden', !(st==='open' && !mine));
@@ -158,6 +160,9 @@ async function load(){
       const server = Date.parse(j.today+'T00:00:00Z') + (h*3600+m*60+s)*1000 - 3*3600e3;
       offset = server - Date.now();
     }
+    if (typeof j.openMin==='number') OPEN=j.openMin;
+    if (typeof j.closeMin==='number') CLOSE=j.closeMin;
+    $('testBadge').classList.toggle('hidden', !j.test);
     if (!$('datePick').value) $('datePick').value = j.today;
     lastData = j; render(j);
   }catch(e){ $('listBody').innerHTML = '<div class="empty">تعذّر الاتصال، حاول مرة أخرى</div>'; }
@@ -168,7 +173,7 @@ function render(j){
   const body = $('listBody'); body.innerHTML='';
   $('tools').classList.add('hidden');
   if (j.hidden){
-    body.innerHTML = `<div class="empty">سجّل ${j.count} حتى الآن — تظهر الأسماء بعد انتهاء الوقت (7:15)</div>`; return;
+    body.innerHTML = `<div class="empty">سجّل ${j.count} حتى الآن — تظهر الأسماء بعد انتهاء الوقت (${hm(CLOSE)})</div>`; return;
   }
   if (!j.entries.length){ body.innerHTML = `<div class="empty">لا يوجد حضور مسجّل ${j.date===j.today?'اليوم':'في هذا اليوم'}</div>`; return; }
   const t = document.createElement('table');
@@ -206,7 +211,7 @@ $('form').onsubmit = async ev=>{
     if (j.ok){ saveRecord(j); tick(); load(); }
     else {
       msg.className='msg err';
-      msg.textContent = j.error==='duplicate' ? 'هذا الاسم مسجّل بالفعل اليوم' : j.error==='closed' ? 'وقت التحضير غير متاح الآن (7:00 – 7:15 صباحًا)' : 'تأكد من كتابة الاسم بشكل صحيح';
+      msg.textContent = j.error==='duplicate' ? 'هذا الاسم مسجّل بالفعل اليوم' : j.error==='closed' ? `وقت التحضير غير متاح الآن (${hm(OPEN)} – ${hm(CLOSE)})` : 'تأكد من كتابة الاسم بشكل صحيح';
     }
   }catch{ msg.className='msg err'; msg.textContent='تعذّر الاتصال، حاول مرة أخرى'; }
   $('submit').disabled=false; $('submit').textContent='تسجيل الحضور';

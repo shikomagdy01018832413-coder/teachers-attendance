@@ -1,6 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
-import { riyadhNow, state, json } from "../lib/shared.mts";
+import { riyadhNow, state, json, STORE, OPEN_MIN, CLOSE_MIN } from "../lib/shared.mts";
 
 export default async (req: Request) => {
   const now = riyadhNow();
@@ -8,9 +8,9 @@ export default async (req: Request) => {
   let date = url.searchParams.get("date") || now.date;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) date = now.date;
   const st = state(now.minutes);
-  const store = getStore({ name: "attendance", consistency: "strong" });
+  const store = getStore({ name: STORE(), consistency: "strong" });
   const { blobs } = await store.list({ prefix: `${date}/` });
-  const base = { date, today: now.date, serverTime: now.time, state: st, count: blobs.length };
+  const base = { date, today: now.date, serverTime: now.time, state: st, count: blobs.length, openMin: OPEN_MIN(), closeMin: CLOSE_MIN(), test: STORE() !== "attendance" };
   // Names are revealed only after the window closes (or for past days)
   if (date === now.date && st !== "closed") return json({ ...base, hidden: true, entries: [] });
   if (date > now.date) return json({ ...base, entries: [] });
