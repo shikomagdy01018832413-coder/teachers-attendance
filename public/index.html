@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>تحضير المعلمين</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f1ea;--card:#fffdf8;--ink:#1f2a24;--muted:#6b7570;--line:#e3ddd0;--accent:#1f6b4f;--accent-ink:#fff;--warn:#b5651d;--bad:#a33b3b;--soft:#e8f1ec}
+@media (prefers-color-scheme:dark){:root{--bg:#141815;--card:#1c221e;--ink:#eef2ee;--muted:#9aa59f;--line:#2c3530;--accent:#4fb38a;--accent-ink:#0d1a14;--warn:#e0a060;--bad:#e07a7a;--soft:#22302a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Tajawal,system-ui,sans-serif;line-height:1.6}
+.wrap{max-width:520px;margin:0 auto;padding:24px 16px 48px}
+header{text-align:center;margin-bottom:18px}
+header .school{color:var(--muted);font-size:14px}
+h1{margin:4px 0 0;font-size:28px;font-weight:800}
+.clock{font-variant-numeric:tabular-nums;font-size:44px;font-weight:800;letter-spacing:1px;text-align:center;margin:8px 0 2px}
+.date{color:var(--muted);text-align:center;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:16px}
+.status{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--muted);flex:none}
+.open .dot{background:var(--accent);box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 20%,transparent)}
+.before .dot{background:var(--warn)}
+.closed .dot{background:var(--bad)}
+.sub{color:var(--muted);margin:6px 0 0;font-size:15px}
+.bar{height:8px;background:var(--line);border-radius:8px;overflow:hidden;margin-top:14px}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .5s}
+label{display:block;font-weight:700;margin:4px 0 8px}
+input[type=text],input[type=date]{width:100%;font:inherit;font-size:18px;padding:14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+input:focus{outline:none;border-color:var(--accent)}
+button{font:inherit;font-weight:700;border:0;border-radius:12px;cursor:pointer}
+.primary{width:100%;margin-top:12px;padding:15px;font-size:19px;background:var(--accent);color:var(--accent-ink)}
+.primary:disabled{opacity:.5;cursor:default}
+.ghost{padding:9px 14px;background:var(--soft);color:var(--ink);font-size:15px}
+.msg{margin-top:12px;padding:12px;border-radius:12px;font-weight:500;display:none}
+.msg.ok{display:block;background:var(--soft);color:var(--accent)}
+.msg.err{display:block;background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad)}
+.done{text-align:center}
+.done .big{font-size:22px;font-weight:800;color:var(--accent)}
+.done .t{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+.listhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.listhead h2{margin:0;font-size:20px}
+.count{background:var(--soft);color:var(--accent);border-radius:999px;padding:2px 12px;font-weight:800}
+table{width:100%;border-collapse:collapse;margin-top:12px}
+th,td{text-align:right;padding:10px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500;font-size:14px}
+td.n{color:var(--muted);width:36px}
+td.tm{font-variant-numeric:tabular-nums;white-space:nowrap;direction:ltr;text-align:left}
+.empty{color:var(--muted);text-align:center;padding:18px 0}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.row{display:flex;gap:8px;align-items:center;margin-top:12px}
+.row input{font-size:16px;padding:10px}
+.hidden{display:none!important}
+@media print{body{background:#fff;color:#000}.noprint{display:none!important}.card{border:0;padding:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="school">مدارس الفيصلية الأهلية</div>
+    <h1>تحضير المعلمين</h1>
+  </header>
+  <div class="clock" id="clock">--:--:--</div>
+  <div class="date" id="todayLabel"></div>
+
+  <div class="card noprint" id="statusCard">
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">جارٍ التحميل…</span></div>
+    <p class="sub" id="statusSub"></p>
+    <div class="bar hidden" id="bar"><i id="barFill"></i></div>
+  </div>
+
+  <div class="card noprint hidden" id="formCard">
+    <form id="form" autocomplete="on">
+      <label for="name">اسم المعلم / المعلمة</label>
+      <input type="text" id="name" name="name" maxlength="60" placeholder="اكتب اسمك الثلاثي" required>
+      <button class="primary" id="submit" type="submit">تسجيل الحضور</button>
+    </form>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <div class="card noprint hidden done" id="doneCard">
+    <div class="big">✓ تم تسجيل حضورك</div>
+    <div id="doneName" style="margin-top:6px;font-weight:700"></div>
+    <div class="t" id="doneTime"></div>
+    <div class="sub">وقت الدخول</div>
+  </div>
+
+  <div class="card" id="listCard">
+    <div class="listhead">
+      <h2>قائمة الحاضرين</h2>
+      <span class="count" id="count">0</span>
+    </div>
+    <div class="row noprint">
+      <input type="date" id="datePick">
+      <button class="ghost" id="refresh">تحديث</button>
+    </div>
+    <div id="listBody"><div class="empty">…</div></div>
+    <div class="tools noprint hidden" id="tools">
+      <button class="ghost" id="copyBtn">نسخ القائمة</button>
+      <button class="ghost" id="waBtn">إرسال واتساب</button>
+      <button class="ghost" onclick="window.print()">طباعة</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const OPEN = 7*60, CLOSE = 7*60+15;
+let offset = 0;            // server(Riyadh) - client, in ms
+let lastData = null;
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+
+function riyadh(){ const d = new Date(Date.now()+offset+3*3600e3); return {d, date:d.toISOString().slice(0,10), sec:d.getUTCHours()*3600+d.getUTCMinutes()*60+d.getUTCSeconds()}; }
+function fmt12(t){ const [h,m,s]=t.split(':').map(Number); const ap=h<12?'ص':'م'; const hh=h%12||12; return `${hh}:${pad(m)}:${pad(s)} ${ap}`; }
+function arDate(iso){ try{ return new Date(iso+'T12:00:00Z').toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric',timeZone:'UTC'}); }catch{ return iso; } }
+function dur(s){ s=Math.max(0,Math.ceil(s)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return h? `${h} س ${pad(m)} د` : `${pad(m)}:${pad(x)}`; }
+
+function myRecord(date){ try{ return JSON.parse(localStorage.getItem('att_'+date)||'null'); }catch{ return null; } }
+function saveRecord(r){ try{ localStorage.setItem('att_'+r.date, JSON.stringify(r)); localStorage.setItem('att_name', r.name); }catch{} }
+
+let lastState = null;
+function tick(){
+  const {d,date,sec} = riyadh();
+  $('clock').textContent = fmt12(`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`);
+  $('todayLabel').textContent = arDate(date);
+  const st = sec < OPEN*60 ? 'before' : sec < CLOSE*60 ? 'open' : 'closed';
+  const card = $('statusCard'); card.className = 'card noprint ' + st;
+  const mine = myRecord(date);
+  if (st==='before'){
+    $('statusText').textContent = 'التحضير لم يبدأ بعد';
+    $('statusSub').textContent = `يفتح الساعة 7:00 صباحًا — باقي ${dur(OPEN*60-sec)}`;
+    $('bar').classList.add('hidden');
+  } else if (st==='open'){
+    $('statusText').textContent = 'التحضير مفتوح الآن';
+    $('statusSub').textContent = `يُغلق الساعة 7:15 — باقي ${dur(CLOSE*60-sec)}`;
+    $('bar').classList.remove('hidden');
+    $('barFill').style.width = ((sec-OPEN*60)/(15*60)*100)+'%';
+  } else {
+    $('statusText').textContent = 'انتهى وقت التحضير';
+    $('statusSub').textContent = 'التسجيل متاح يوميًا من 7:00 إلى 7:15 صباحًا';
+    $('bar').classList.add('hidden');
+  }
+  $('formCard').classList.toggle('hidden', !(st==='open' && !mine));
+  $('doneCard').classList.toggle('hidden', !mine);
+  if (mine){ $('doneName').textContent = mine.name; $('doneTime').textContent = fmt12(mine.time); }
+  if (lastState && lastState!==st) { $('datePick').value = date; load(); }
+  lastState = st;
+}
+
+async function load(){
+  const date = $('datePick').value;
+  try{
+    const r = await fetch('/api/list?date='+encodeURIComponent(date||''), {cache:'no-store'});
+    const j = await r.json();
+    if (j.serverTime && j.today){
+      const [h,m,s] = j.serverTime.split(':').map(Number);
+      const server = Date.parse(j.today+'T00:00:00Z') + (h*3600+m*60+s)*1000 - 3*3600e3;
+      offset = server - Date.now();
+    }
+    if (!$('datePick').value) $('datePick').value = j.today;
+    lastData = j; render(j);
+  }catch(e){ $('listBody').innerHTML = '<div class="empty">تعذّر الاتصال، حاول مرة أخرى</div>'; }
+}
+
+function render(j){
+  $('count').textContent = j.count;
+  const body = $('listBody'); body.innerHTML='';
+  $('tools').classList.add('hidden');
+  if (j.hidden){
+    body.innerHTML = `<div class="empty">سجّل ${j.count} حتى الآن — تظهر الأسماء بعد انتهاء الوقت (7:15)</div>`; return;
+  }
+  if (!j.entries.length){ body.innerHTML = `<div class="empty">لا يوجد حضور مسجّل ${j.date===j.today?'اليوم':'في هذا اليوم'}</div>`; return; }
+  const t = document.createElement('table');
+  t.innerHTML = '<thead><tr><th>#</th><th>الاسم</th><th>وقت الدخول</th></tr></thead>';
+  const tb = document.createElement('tbody');
+  j.entries.forEach((e,i)=>{
+    const tr=document.createElement('tr');
+    const a=document.createElement('td'); a.className='n'; a.textContent=i+1;
+    const b=document.createElement('td'); b.textContent=e.name;
+    const c=document.createElement('td'); c.className='tm'; c.textContent=fmt12(e.time);
+    tr.append(a,b,c); tb.append(tr);
+  });
+  t.append(tb); body.append(t);
+  $('tools').classList.remove('hidden');
+}
+
+function asText(){
+  const j=lastData; if(!j) return '';
+  return `حضور المعلمين — ${arDate(j.date)}\nالعدد: ${j.entries.length}\n\n` + j.entries.map((e,i)=>`${i+1}. ${e.name} — ${fmt12(e.time)}`).join('\n');
+}
+$('copyBtn').onclick = async ()=>{ try{ await navigator.clipboard.writeText(asText()); $('copyBtn').textContent='تم النسخ ✓'; setTimeout(()=>$('copyBtn').textContent='نسخ القائمة',1500);}catch{ alert(asText()); } };
+$('waBtn').onclick = ()=> window.open('https://wa.me/?text='+encodeURIComponent(asText()),'_blank');
+$('refresh').onclick = load;
+$('datePick').onchange = load;
+
+$('form').onsubmit = async ev=>{
+  ev.preventDefault();
+  const name = $('name').value.trim(), msg=$('msg');
+  msg.className='msg';
+  if (name.length<3){ msg.className='msg err'; msg.textContent='اكتب الاسم كاملًا'; return; }
+  $('submit').disabled=true; $('submit').textContent='جارٍ التسجيل…';
+  try{
+    const r = await fetch('/api/checkin',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name})});
+    const j = await r.json();
+    if (j.ok){ saveRecord(j); tick(); load(); }
+    else {
+      msg.className='msg err';
+      msg.textContent = j.error==='duplicate' ? 'هذا الاسم مسجّل بالفعل اليوم' : j.error==='closed' ? 'وقت التحضير غير متاح الآن (7:00 – 7:15 صباحًا)' : 'تأكد من كتابة الاسم بشكل صحيح';
+    }
+  }catch{ msg.className='msg err'; msg.textContent='تعذّر الاتصال، حاول مرة أخرى'; }
+  $('submit').disabled=false; $('submit').textContent='تسجيل الحضور';
+};
+
+try{ const n=localStorage.getItem('att_name'); if(n) $('name').value=n; }catch{}
+load().then(()=>{ tick(); setInterval(tick,1000); });
+setInterval(()=>{ if(lastData && lastData.date===lastData.today) load(); }, 30000);
+</script>
+</body>
+</html>
