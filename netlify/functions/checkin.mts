@@ -13,8 +13,9 @@ export default async (req: Request) => {
   const norm = name.replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").toLowerCase();
   const store = getStore({ name: STORE(), consistency: "strong" });
   const key = `${now.date}/${encodeURIComponent(norm)}`;
-  const { modified } = await store.setJSON(key, { name, time: now.time, at: Date.now() }, { onlyIfNew: true });
-  if (!modified) return json({ error: "duplicate" }, 409);
+  const existing = await store.get(key, { type: "json" });
+  if (existing) return json({ error: "duplicate" }, 409);
+  await store.setJSON(key, { name, time: now.time, at: Date.now() });
   return json({ ok: true, name, time: now.time, date: now.date });
 };
 export const config: Config = { path: "/api/checkin", method: "POST" };
