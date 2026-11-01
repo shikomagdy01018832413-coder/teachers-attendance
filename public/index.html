@@ -97,6 +97,7 @@ td.tm{font-variant-numeric:tabular-nums;white-space:nowrap;direction:ltr;text-al
       <button class="ghost" id="refresh">تحديث</button>
     </div>
     <div id="listBody"><div class="empty">…</div></div>
+    <button class="primary noprint hidden" id="pdfBtn" style="margin-top:14px">📄 تقرير الحضور PDF</button>
     <div class="tools noprint hidden" id="tools">
       <button class="ghost" id="copyBtn">نسخ القائمة</button>
       <button class="ghost" id="waBtn">إرسال واتساب</button>
@@ -172,6 +173,7 @@ function render(j){
   $('count').textContent = j.count;
   const body = $('listBody'); body.innerHTML='';
   $('tools').classList.add('hidden');
+  $('pdfBtn').classList.add('hidden');
   if (j.hidden){
     body.innerHTML = `<div class="empty">سجّل ${j.count} حتى الآن — تظهر الأسماء بعد انتهاء الوقت (${hm(CLOSE)})</div>`; return;
   }
@@ -188,7 +190,47 @@ function render(j){
   });
   t.append(tb); body.append(t);
   $('tools').classList.remove('hidden');
+  $('pdfBtn').classList.remove('hidden');
 }
+
+
+function esc(t){ return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+async function makePdf(){
+  const j=lastData; if(!j||!j.entries.length) return;
+  const btn=$('pdfBtn'); const old=btn.textContent; btn.disabled=true; btn.textContent='جارٍ تجهيز التقرير…';
+  try{
+    if(!window.html2pdf) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js');
+    const first=j.entries[0].time, last=j.entries[j.entries.length-1].time;
+    const now=riyadh().d; const gen=`${arDate(riyadh().date)} — ${fmt12(`${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`)}`;
+    const rows=j.entries.map((e,i)=>`<tr style="background:${i%2?'#f6f4ee':'#fff'}"><td style="padding:9px 8px;border:1px solid #d9d4c7;text-align:center;width:40px">${i+1}</td><td style="padding:9px 10px;border:1px solid #d9d4c7">${esc(e.name)}</td><td style="padding:9px 8px;border:1px solid #d9d4c7;text-align:center;width:130px;direction:ltr">${fmt12(e.time)}</td><td style="padding:9px 8px;border:1px solid #d9d4c7;width:110px"></td></tr>`).join('');
+    const el=document.createElement('div');
+    el.innerHTML=`<div dir="rtl" style="font-family:Tajawal,Arial,sans-serif;color:#1f2a24;padding:28px 34px;width:720px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1f6b4f;padding-bottom:12px">
+        <div><div style="font-size:15px;color:#555">مدارس الفيصلية الأهلية</div><div style="font-size:26px;font-weight:800;margin-top:2px">تقرير حضور المعلمين</div></div>
+        <div style="text-align:left;font-size:14px;color:#555">${arDate(j.date)}<br>فترة التحضير: ${hm(OPEN)} – ${hm(CLOSE)}</div>
+      </div>
+      <div style="display:flex;gap:12px;margin:18px 0">
+        <div style="flex:1;background:#e8f1ec;border-radius:10px;padding:12px;text-align:center"><div style="font-size:13px;color:#555">عدد الحاضرين</div><div style="font-size:26px;font-weight:800;color:#1f6b4f">${j.entries.length}</div></div>
+        <div style="flex:1;background:#f6f4ee;border-radius:10px;padding:12px;text-align:center"><div style="font-size:13px;color:#555">أول تسجيل</div><div style="font-size:18px;font-weight:700;direction:ltr">${fmt12(first)}</div></div>
+        <div style="flex:1;background:#f6f4ee;border-radius:10px;padding:12px;text-align:center"><div style="font-size:13px;color:#555">آخر تسجيل</div><div style="font-size:18px;font-weight:700;direction:ltr">${fmt12(last)}</div></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:15px">
+        <thead><tr style="background:#1f6b4f;color:#fff"><th style="padding:10px 8px;border:1px solid #1f6b4f">#</th><th style="padding:10px;border:1px solid #1f6b4f;text-align:right">اسم المعلم / المعلمة</th><th style="padding:10px 8px;border:1px solid #1f6b4f">وقت الدخول</th><th style="padding:10px 8px;border:1px solid #1f6b4f">التوقيع</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="display:flex;justify-content:space-between;margin-top:34px;font-size:15px"><div>اعتماد مدير المدرسة: ....................</div><div>التوقيع: ....................</div></div>
+      <div style="margin-top:22px;font-size:11px;color:#888;text-align:center">تم إنشاء التقرير آليًا من نظام تحضير المعلمين — ${gen}</div>
+    </div>`;
+    await html2pdf().set({
+      margin:[8,6,10,6], filename:`حضور-المعلمين-${j.date}.pdf`,
+      image:{type:'jpeg',quality:0.96}, html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}, pagebreak:{mode:['css','legacy'],avoid:'tr'}
+    }).from(el.firstElementChild).save();
+  }catch(e){ alert('تعذّر إنشاء التقرير، تأكد من الاتصال بالإنترنت وحاول مرة أخرى'); }
+  btn.disabled=false; btn.textContent=old;
+}
+$('pdfBtn').onclick = makePdf;
 
 function asText(){
   const j=lastData; if(!j) return '';
